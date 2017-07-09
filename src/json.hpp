@@ -2139,6 +2139,363 @@ class basic_json
         }
     };
 
+    ////////////////////////////
+    // new JSON value storage //
+    ////////////////////////////
+
+    /// base class for JSON values
+    class json_value_base
+    {
+      public:
+        virtual bool empty() const noexcept = 0;
+        virtual size_type size() const noexcept  = 0;
+        virtual size_type max_size() const noexcept  = 0;
+        virtual void clear() noexcept = 0;
+        virtual value_t type() const noexcept = 0;
+        virtual const char* type_name() const noexcept = 0;
+        virtual ~json_value_base() { }
+    };
+
+    /// null
+    class json_value_null : json_value_base
+    {
+      public:
+        constexpr bool empty() const noexcept override
+        {
+            return true;
+        }
+
+        constexpr size_type size() const noexcept override
+        {
+            return 0;
+        }
+
+        constexpr size_type max_size() const noexcept override
+        {
+            return 0;
+        }
+
+        void clear() noexcept override
+        {}
+
+        constexpr value_t type() const noexcept override
+        {
+            return value_t::null;
+        }
+
+        constexpr const char* type_name() const noexcept override
+        {
+            return "null";
+        }
+    };
+
+    /// base class for primitive values other than null
+    class json_value_primitive : json_value_base
+    {
+        constexpr bool empty() const noexcept override
+        {
+            return false;
+        }
+
+        constexpr size_type size() const noexcept override
+        {
+            return 1;
+        }
+
+        constexpr size_type max_size() const noexcept override
+        {
+            return 1;
+        }
+    };
+
+    /// boolean
+    class json_value_boolean : json_value_primitive
+    {
+      public:
+        using value_type = bool;
+
+        explicit json_value_boolean(const value_type& val) noexcept
+            : m_value(val)
+        {}
+
+        void clear() noexcept override
+        {
+            m_value = false;
+        }
+
+        constexpr value_t type() const noexcept override
+        {
+            return value_t::boolean;
+        }
+
+        constexpr const char* type_name() const noexcept
+        {
+            return "boolean";
+        }
+
+      private:
+        value_type m_value = false;
+    };
+
+    /// number: integer
+    class json_value_number_integer : json_value_primitive
+    {
+      public:
+        using value_type = int64_t;
+
+        explicit json_value_number_integer(value_type val) noexcept
+            : m_value(val)
+        {}
+
+        void clear() noexcept override
+        {
+            m_value = 0;
+        }
+
+        constexpr value_t type() const noexcept override
+        {
+            return value_t::number_integer;
+        }
+
+        constexpr const char* type_name() const noexcept
+        {
+            return "number";
+        }
+
+      private:
+        value_type m_value = 0;
+    };
+
+    /// number: unsigned integer
+    class json_value_number_unsigned : json_value_primitive
+    {
+      public:
+        using value_type = uint64_t;
+
+        explicit json_value_number_unsigned(value_type val) noexcept
+            : m_value(val)
+        {}
+
+        void clear() noexcept override
+        {
+            m_value = 0;
+        }
+
+        constexpr value_t type() const noexcept override
+        {
+            return value_t::number_unsigned;
+        }
+
+        constexpr const char* type_name() const noexcept
+        {
+            return "number";
+        }
+
+      private:
+        value_type m_value = 0;
+    };
+
+    /// number: floating-point
+    class json_value_number_float : json_value_primitive
+    {
+      public:
+        using value_type = double;
+
+        explicit json_value_number_float(value_type val) noexcept
+            : m_value(val)
+        {}
+
+        void clear() noexcept override
+        {
+            m_value = 0.0;
+        }
+
+        constexpr value_t type() const noexcept override
+        {
+            return value_t::number_float;
+        }
+
+        constexpr const char* type_name() const noexcept
+        {
+            return "number";
+        }
+
+      private:
+        value_type m_value = 0.0;
+    };
+
+    /// string
+    class json_value_string : json_value_primitive
+    {
+      public:
+        using value_type = std::string;
+
+        explicit json_value_string(const value_type& val)
+            : m_value(val)
+        {}
+
+        void clear() noexcept override
+        {
+            m_value.clear();
+        }
+
+        constexpr value_t type() const noexcept override
+        {
+            return value_t::string;
+        }
+
+        constexpr const char* type_name() const noexcept
+        {
+            return "string";
+        }
+
+      private:
+        value_type m_value = "";
+    };
+
+    /// array
+    class json_value_array : json_value_base
+    {
+      public:
+        using value_type = std::vector<basic_json>;
+
+        explicit json_value_array(const value_type& val)
+            : m_value(val)
+        {}
+
+        constexpr bool empty() const noexcept override
+        {
+            return m_value.empty();
+        }
+
+        constexpr size_type size() const noexcept override
+        {
+            return m_value.size();
+        }
+
+        constexpr size_type max_size() const noexcept override
+        {
+            return m_value.max_size();
+        }
+
+        void clear() noexcept override
+        {
+            m_value.clear();
+        }
+
+        constexpr value_t type() const noexcept override
+        {
+            return value_t::array;
+        }
+
+        constexpr const char* type_name() const noexcept
+        {
+            return "array";
+        }
+
+      private:
+        value_type m_value {};
+    };
+
+    /// object
+    class json_value_object : json_value_base
+    {
+      public:
+        using value_type = std::map<std::string, basic_json>;
+
+        explicit json_value_object(const value_type& val)
+            : m_value(val)
+        {}
+
+        constexpr bool empty() const noexcept override
+        {
+            return m_value.empty();
+        }
+
+        constexpr size_type size() const noexcept override
+        {
+            return m_value.size();
+        }
+
+        constexpr size_type max_size() const noexcept override
+        {
+            return m_value.max_size();
+        }
+
+        void clear() noexcept override
+        {
+            m_value.clear();
+        }
+
+        constexpr value_t type() const noexcept override
+        {
+            return value_t::object;
+        }
+
+        constexpr const char* type_name() const noexcept override
+        {
+            return "object";
+        }
+
+      private:
+        value_type m_value {};
+    };
+
+    /// an umbrella type for all value types
+    using json_value_t = std::shared_ptr<json_value_base>;
+
+    /// a factory for value types
+    json_value_t create(value_t t)
+    {
+        switch (t)
+        {
+            case value_t::object:
+            {
+                return std::make_shared<json_value_object>();
+            }
+
+            case value_t::array:
+            {
+                return std::make_shared<json_value_array>();
+            }
+
+            case value_t::string:
+            {
+                return std::make_shared<json_value_string>();
+            }
+
+            case value_t::boolean:
+            {
+                return std::make_shared<json_value_boolean>();
+            }
+
+            case value_t::number_integer:
+            {
+                return std::make_shared<json_value_number_integer>();
+            }
+
+            case value_t::number_unsigned:
+            {
+                return std::make_shared<json_value_number_unsigned>();
+            }
+
+            case value_t::number_float:
+            {
+                return std::make_shared<json_value_number_float>();
+            }
+
+            case value_t::null:
+            {
+                return std::make_shared<json_value_null>();
+            }
+
+            default:
+            {
+                return nullptr;
+            }
+        }
+    }
+
     /*!
     @brief checks the class invariants
 
