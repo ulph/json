@@ -4650,57 +4650,27 @@ class binary_reader
             case 0x96:
             case 0x97:
             {
-                BasicJsonType result = value_t::array;
-                const auto len = static_cast<size_t>(current & 0x1f);
-                for (std::size_t i = 0; i < len; ++i)
-                {
-                    result.push_back(parse_cbor());
-                }
-                return result;
+                return get_cbor_array(current & 0x1f);
             }
 
             case 0x98: // array (one-byte uint8_t for n follows)
             {
-                BasicJsonType result = value_t::array;
-                const auto len = static_cast<size_t>(get_number<uint8_t>());
-                for (std::size_t i = 0; i < len; ++i)
-                {
-                    result.push_back(parse_cbor());
-                }
-                return result;
+                return get_cbor_array(get_number<uint8_t>());
             }
 
             case 0x99: // array (two-byte uint16_t for n follow)
             {
-                BasicJsonType result = value_t::array;
-                const auto len = static_cast<size_t>(get_number<uint16_t>());
-                for (std::size_t i = 0; i < len; ++i)
-                {
-                    result.push_back(parse_cbor());
-                }
-                return result;
+                return get_cbor_array(get_number<uint16_t>());
             }
 
             case 0x9a: // array (four-byte uint32_t for n follow)
             {
-                BasicJsonType result = value_t::array;
-                const auto len = static_cast<size_t>(get_number<uint32_t>());
-                for (std::size_t i = 0; i < len; ++i)
-                {
-                    result.push_back(parse_cbor());
-                }
-                return result;
+                return get_cbor_array(get_number<uint32_t>());
             }
 
             case 0x9b: // array (eight-byte uint64_t for n follow)
             {
-                BasicJsonType result = value_t::array;
-                const auto len = static_cast<size_t>(get_number<uint64_t>());
-                for (std::size_t i = 0; i < len; ++i)
-                {
-                    result.push_back(parse_cbor());
-                }
-                return result;
+                return get_cbor_array(get_number<uint64_t>());
             }
 
             case 0x9f: // array (indefinite length)
@@ -4739,76 +4709,37 @@ class binary_reader
             case 0xb6:
             case 0xb7:
             {
-                BasicJsonType result = value_t::object;
-                const auto len = static_cast<size_t>(current & 0x1f);
-                for (std::size_t i = 0; i < len; ++i)
-                {
-                    get();
-                    auto key = get_cbor_string();
-                    result[key] = parse_cbor();
-                }
-                return result;
+                return get_cbor_object(current & 0x1f);
             }
 
             case 0xb8: // map (one-byte uint8_t for n follows)
             {
-                BasicJsonType result = value_t::object;
-                const auto len = static_cast<size_t>(get_number<uint8_t>());
-                for (std::size_t i = 0; i < len; ++i)
-                {
-                    get();
-                    auto key = get_cbor_string();
-                    result[key] = parse_cbor();
-                }
-                return result;
+                return get_cbor_object(get_number<uint8_t>());
             }
 
             case 0xb9: // map (two-byte uint16_t for n follow)
             {
-                BasicJsonType result = value_t::object;
-                const auto len = static_cast<size_t>(get_number<uint16_t>());
-                for (std::size_t i = 0; i < len; ++i)
-                {
-                    get();
-                    auto key = get_cbor_string();
-                    result[key] = parse_cbor();
-                }
-                return result;
+                return get_cbor_object(get_number<uint16_t>());
             }
 
             case 0xba: // map (four-byte uint32_t for n follow)
             {
-                BasicJsonType result = value_t::object;
-                const auto len = static_cast<size_t>(get_number<uint32_t>());
-                for (std::size_t i = 0; i < len; ++i)
-                {
-                    get();
-                    auto key = get_cbor_string();
-                    result[key] = parse_cbor();
-                }
-                return result;
+                return get_cbor_object(get_number<uint32_t>());
             }
 
             case 0xbb: // map (eight-byte uint64_t for n follow)
             {
-                BasicJsonType result = value_t::object;
-                const auto len = static_cast<size_t>(get_number<uint64_t>());
-                for (std::size_t i = 0; i < len; ++i)
-                {
-                    get();
-                    auto key = get_cbor_string();
-                    result[key] = parse_cbor();
-                }
-                return result;
+                return get_cbor_object(get_number<uint64_t>());
             }
 
             case 0xbf: // map (indefinite length)
             {
                 BasicJsonType result = value_t::object;
+                std::string key;
                 while (get() != 0xff)
                 {
-                    auto key = get_cbor_string();
-                    result[key] = parse_cbor();
+                    key = get_cbor_string();
+                    result[std::move(key)] = parse_cbor();
                 }
                 return result;
             }
@@ -5475,6 +5406,35 @@ class binary_reader
                 JSON_THROW(parse_error::create(113, chars_read, "expected a CBOR string; last byte: 0x" + ss.str()));
             }
         }
+    }
+
+    template<typename NumberType>
+    BasicJsonType get_cbor_array(const NumberType len)
+    {
+        BasicJsonType result = value_t::array;
+
+        for (NumberType i = 0; i < len; ++i)
+        {
+            result.push_back(parse_cbor());
+        }
+
+        return result;
+    }
+
+    template<typename NumberType>
+    BasicJsonType get_cbor_object(const NumberType len)
+    {
+        BasicJsonType result = value_t::object;
+        std::string key;
+
+        for (NumberType i = 0; i < len; ++i)
+        {
+            get();
+            key = get_cbor_string();
+            result[std::move(key)] = parse_cbor();
+        }
+
+        return result;
     }
 
     /*!
@@ -6481,7 +6441,7 @@ class serializer
         return res;
     }
 
-    static void escape_codepoint(int codepoint, string_t& result, size_t& pos)
+    static void escape_codepoint(int codepoint, string_t& result, std::size_t& pos)
     {
         // expecting a proper codepoint
         assert(0x00 <= codepoint and codepoint <= 0x10FFFF);
