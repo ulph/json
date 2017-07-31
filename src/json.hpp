@@ -4480,7 +4480,7 @@ class binary_reader
     @throw parse_error.110 if input ended unexpectedly
     @throw parse_error.112 if unsupported byte was read
     */
-    BasicJsonType parse_cbor(const bool get_char = true)
+    void parse_cbor(BasicJsonType& result, const bool get_char = true)
     {
         switch (get_char ? get() : current)
         {
@@ -4516,27 +4516,32 @@ class binary_reader
             case 0x16:
             case 0x17:
             {
-                return static_cast<number_unsigned_t>(current);
+                result = static_cast<number_unsigned_t>(current);
+                break;
             }
 
             case 0x18: // Unsigned integer (one-byte uint8_t follows)
             {
-                return get_number<uint8_t>();
+                result = get_number<uint8_t>();
+                break;
             }
 
             case 0x19: // Unsigned integer (two-byte uint16_t follows)
             {
-                return get_number<uint16_t>();
+                result = get_number<uint16_t>();
+                break;
             }
 
             case 0x1a: // Unsigned integer (four-byte uint32_t follows)
             {
-                return get_number<uint32_t>();
+                result = get_number<uint32_t>();
+                break;
             }
 
             case 0x1b: // Unsigned integer (eight-byte uint64_t follows)
             {
-                return get_number<uint64_t>();
+                result = get_number<uint64_t>();
+                break;
             }
 
             // Negative integer -1-0x00..-1-0x17 (-1..-24)
@@ -4565,29 +4570,34 @@ class binary_reader
             case 0x36:
             case 0x37:
             {
-                return static_cast<int8_t>(0x20 - 1 - current);
+                result = static_cast<int8_t>(0x20 - 1 - current);
+                break;
             }
 
             case 0x38: // Negative integer (one-byte uint8_t follows)
             {
                 // must be uint8_t !
-                return static_cast<number_integer_t>(-1) - get_number<uint8_t>();
+                result = static_cast<number_integer_t>(-1) - get_number<uint8_t>();
+                break;
             }
 
             case 0x39: // Negative integer -1-n (two-byte uint16_t follows)
             {
-                return static_cast<number_integer_t>(-1) - get_number<uint16_t>();
+                result = static_cast<number_integer_t>(-1) - get_number<uint16_t>();
+                break;
             }
 
             case 0x3a: // Negative integer -1-n (four-byte uint32_t follows)
             {
-                return static_cast<number_integer_t>(-1) - get_number<uint32_t>();
+                result = static_cast<number_integer_t>(-1) - get_number<uint32_t>();
+                break;
             }
 
             case 0x3b: // Negative integer -1-n (eight-byte uint64_t follows)
             {
-                return static_cast<number_integer_t>(-1) -
-                       static_cast<number_integer_t>(get_number<uint64_t>());
+                result = static_cast<number_integer_t>(-1) -
+                         static_cast<number_integer_t>(get_number<uint64_t>());
+                break;
             }
 
             // UTF-8 string (0x00..0x17 bytes follow)
@@ -4621,7 +4631,8 @@ class binary_reader
             case 0x7b: // UTF-8 string (eight-byte uint64_t for n follow)
             case 0x7f: // UTF-8 string (indefinite length)
             {
-                return get_cbor_string();
+                result = get_cbor_string();
+                break;
             }
 
             // array (0x00..0x17 data items follow)
@@ -4650,37 +4661,44 @@ class binary_reader
             case 0x96:
             case 0x97:
             {
-                return get_cbor_array(current & 0x1f);
+                get_cbor_array(current & 0x1f, result);
+                break;
             }
 
             case 0x98: // array (one-byte uint8_t for n follows)
             {
-                return get_cbor_array(get_number<uint8_t>());
+                get_cbor_array(get_number<uint8_t>(), result);
+                break;
             }
 
             case 0x99: // array (two-byte uint16_t for n follow)
             {
-                return get_cbor_array(get_number<uint16_t>());
+                get_cbor_array(get_number<uint16_t>(), result);
+                break;
             }
 
             case 0x9a: // array (four-byte uint32_t for n follow)
             {
-                return get_cbor_array(get_number<uint32_t>());
+                get_cbor_array(get_number<uint32_t>(), result);
+                break;
             }
 
             case 0x9b: // array (eight-byte uint64_t for n follow)
             {
-                return get_cbor_array(get_number<uint64_t>());
+                get_cbor_array(get_number<uint64_t>(), result);
+                break;
             }
 
             case 0x9f: // array (indefinite length)
             {
-                BasicJsonType result = value_t::array;
+                result = value_t::array;
+                BasicJsonType element;
                 while (get() != 0xff)
                 {
-                    result.push_back(parse_cbor(false));
+                    parse_cbor(element, false);
+                    result.m_value.array->push_back(std::move(element));
                 }
-                return result;
+                break;
             }
 
             // map (0x00..0x17 pairs of data items follow)
@@ -4709,54 +4727,64 @@ class binary_reader
             case 0xb6:
             case 0xb7:
             {
-                return get_cbor_object(current & 0x1f);
+                get_cbor_object(current & 0x1f, result);
+                break;
             }
 
             case 0xb8: // map (one-byte uint8_t for n follows)
             {
-                return get_cbor_object(get_number<uint8_t>());
+                get_cbor_object(get_number<uint8_t>(), result);
+                break;
             }
 
             case 0xb9: // map (two-byte uint16_t for n follow)
             {
-                return get_cbor_object(get_number<uint16_t>());
+                get_cbor_object(get_number<uint16_t>(), result);
+                break;
             }
 
             case 0xba: // map (four-byte uint32_t for n follow)
             {
-                return get_cbor_object(get_number<uint32_t>());
+                get_cbor_object(get_number<uint32_t>(), result);
+                break;
             }
 
             case 0xbb: // map (eight-byte uint64_t for n follow)
             {
-                return get_cbor_object(get_number<uint64_t>());
+                get_cbor_object(get_number<uint64_t>(), result);
+                break;
             }
 
             case 0xbf: // map (indefinite length)
             {
-                BasicJsonType result = value_t::object;
+                result = value_t::object;
                 std::string key;
+                BasicJsonType value;
                 while (get() != 0xff)
                 {
                     key = get_cbor_string();
-                    result[std::move(key)] = parse_cbor();
+                    parse_cbor(value);
+                    result.m_value.object->emplace(std::move(key), std::move(value));
                 }
-                return result;
+                break;
             }
 
             case 0xf4: // false
             {
-                return false;
+                result = false;
+                break;
             }
 
             case 0xf5: // true
             {
-                return true;
+                result = true;
+                break;
             }
 
             case 0xf6: // null
             {
-                return value_t::null;
+                result = value_t::null;
+                break;
             }
 
             case 0xf9: // Half-Precision Float (two-byte IEEE 754)
@@ -4788,20 +4816,24 @@ class binary_reader
                 }
                 else
                 {
-                    val = (mant == 0) ? std::numeric_limits<double>::infinity()
+                    val = (mant == 0)
+                          ? std::numeric_limits<double>::infinity()
                           : std::numeric_limits<double>::quiet_NaN();
                 }
-                return (half & 0x8000) != 0 ? -val : val;
+                result = (half & 0x8000) != 0 ? -val : val;
+                break;
             }
 
             case 0xfa: // Single-Precision Float (four-byte IEEE 754)
             {
-                return get_number<float>();
+                result = get_number<float>();
+                break;
             }
 
             case 0xfb: // Double-Precision Float (eight-byte IEEE 754)
             {
-                return get_number<double>();
+                result = get_number<double>();
+                break;
             }
 
             default: // anything else (0xFF is handled inside the other types)
@@ -4821,7 +4853,7 @@ class binary_reader
     @throw parse_error.110 if input ended unexpectedly
     @throw parse_error.112 if unsupported byte was read
     */
-    BasicJsonType parse_msgpack()
+    void parse_msgpack(BasicJsonType& result)
     {
         switch (get())
         {
@@ -4961,7 +4993,8 @@ class binary_reader
             case 0x7e:
             case 0x7f:
             {
-                return static_cast<number_unsigned_t>(current);
+                result = static_cast<number_unsigned_t>(current);
+                break;
             }
 
             // fixmap
@@ -4982,7 +5015,8 @@ class binary_reader
             case 0x8e:
             case 0x8f:
             {
-                return get_msgpack_object(current & 0x0f);
+                get_msgpack_object(current & 0x0f, result);
+                break;
             }
 
             // fixarray
@@ -5003,7 +5037,8 @@ class binary_reader
             case 0x9e:
             case 0x9f:
             {
-                return get_msgpack_array(current & 0x0f);
+                get_msgpack_array(current & 0x0f, result);
+                break;
             }
 
             // fixstr
@@ -5043,92 +5078,110 @@ class binary_reader
             case 0xda: // str 16
             case 0xdb: // str 32
             {
-                return get_msgpack_string();
+                result = get_msgpack_string();
+                break;
             }
 
             case 0xc0: // nil
             {
-                return value_t::null;
+                result = value_t::null;
+                break;
             }
 
             case 0xc2: // false
             {
-                return false;
+                result = false;
+                break;
             }
 
             case 0xc3: // true
             {
-                return true;
+                result = true;
+                break;
             }
 
             case 0xca: // float 32
             {
-                return get_number<float>();
+                result = get_number<float>();
+                break;
             }
 
             case 0xcb: // float 64
             {
-                return get_number<double>();
+                result = get_number<double>();
+                break;
             }
 
             case 0xcc: // uint 8
             {
-                return get_number<uint8_t>();
+                result = get_number<uint8_t>();
+                break;
             }
 
             case 0xcd: // uint 16
             {
-                return get_number<uint16_t>();
+                result = get_number<uint16_t>();
+                break;
             }
 
             case 0xce: // uint 32
             {
-                return get_number<uint32_t>();
+                result = get_number<uint32_t>();
+                break;
             }
 
             case 0xcf: // uint 64
             {
-                return get_number<uint64_t>();
+                result = get_number<uint64_t>();
+                break;
             }
 
             case 0xd0: // int 8
             {
-                return get_number<int8_t>();
+                result = get_number<int8_t>();
+                break;
             }
 
             case 0xd1: // int 16
             {
-                return get_number<int16_t>();
+                result = get_number<int16_t>();
+                break;
             }
 
             case 0xd2: // int 32
             {
-                return get_number<int32_t>();
+                result = get_number<int32_t>();
+                break;
             }
 
             case 0xd3: // int 64
             {
-                return get_number<int64_t>();
+                result = get_number<int64_t>();
+                break;
             }
 
             case 0xdc: // array 16
             {
-                return get_msgpack_array(get_number<uint16_t>());
+                get_msgpack_array(get_number<uint16_t>(), result);
+                break;
             }
 
             case 0xdd: // array 32
             {
-                return get_msgpack_array(get_number<uint32_t>());
+                get_msgpack_array(get_number<uint32_t>(), result);
+                break;
             }
 
             case 0xde: // map 16
             {
-                return get_msgpack_object(get_number<uint16_t>());
+                get_msgpack_object(get_number<uint16_t>(), result);
+                break;
             }
 
             case 0xdf: // map 32
             {
-                return get_msgpack_object(get_number<uint32_t>());
+                get_msgpack_object(get_number<uint32_t>(), result);
+                break;
             }
 
             // positive fixint
@@ -5165,7 +5218,8 @@ class binary_reader
             case 0xfe:
             case 0xff:
             {
-                return static_cast<int8_t>(current);
+                result = static_cast<int8_t>(current);
+                break;
             }
 
             default: // anything else
@@ -5363,61 +5417,61 @@ class binary_reader
     }
 
     template<typename NumberType>
-    BasicJsonType get_msgpack_array(const NumberType len)
+    void get_msgpack_array(const NumberType len, BasicJsonType& result)
     {
-        BasicJsonType result = value_t::array;
+        result = value_t::array;
+        BasicJsonType value;
 
         for (NumberType i = 0; i < len; ++i)
         {
-            result.push_back(parse_msgpack());
+            parse_msgpack(value);
+            result.m_value.array->push_back(std::move(value));
         }
-
-        return result;
     }
 
     template<typename NumberType>
-    BasicJsonType get_msgpack_object(const NumberType len)
+    void get_msgpack_object(const NumberType len, BasicJsonType& result)
     {
-        BasicJsonType result = value_t::object;
+        result = value_t::object;
         std::string key;
+        BasicJsonType value;
 
         for (NumberType i = 0; i < len; ++i)
         {
             get();
             key = get_msgpack_string();
-            result[std::move(key)] = parse_msgpack();
+            parse_msgpack(value);
+            result.m_value.object->emplace(std::move(key), std::move(value));
         }
-
-        return result;
     }
 
     template<typename NumberType>
-    BasicJsonType get_cbor_array(const NumberType len)
+    void get_cbor_array(const NumberType len, BasicJsonType& result)
     {
-        BasicJsonType result = value_t::array;
+        result = value_t::array;
+        BasicJsonType value;
 
         for (NumberType i = 0; i < len; ++i)
         {
-            result.push_back(parse_cbor());
+            parse_cbor(value);
+            result.m_value.array->push_back(std::move(value));
         }
-
-        return result;
     }
 
     template<typename NumberType>
-    BasicJsonType get_cbor_object(const NumberType len)
+    void get_cbor_object(const NumberType len, BasicJsonType& result)
     {
-        BasicJsonType result = value_t::object;
+        result = value_t::object;
         std::string key;
+        BasicJsonType value;
 
         for (NumberType i = 0; i < len; ++i)
         {
             get();
             key = get_cbor_string();
-            result[std::move(key)] = parse_cbor();
+            parse_cbor(value);
+            result.m_value.object->emplace(std::move(key), std::move(value));
         }
-
-        return result;
     }
 
     /*!
@@ -7310,6 +7364,8 @@ class basic_json
     friend class ::nlohmann::detail::iter_impl;
     template<typename BasicJsonType, typename CharType>
     friend class ::nlohmann::detail::binary_writer;
+    template<typename BasicJsonType>
+    friend class ::nlohmann::detail::binary_reader;
     /// workaround type for MSVC
     using basic_json_t = NLOHMANN_BASIC_JSON_TPL;
 
@@ -13184,13 +13240,17 @@ class basic_json
     static basic_json from_cbor(const std::vector<uint8_t>& v,
                                 const std::size_t start_index = 0)
     {
+        basic_json result;
         binary_reader br(detail::input_adapter(v.begin() + static_cast<difference_type>(start_index), v.end()));
-        return br.parse_cbor();
+        br.parse_cbor(result);
+        return result;
     }
 
     static basic_json from_cbor(detail::input_adapter i)
     {
-        return binary_reader(i).parse_cbor();
+        basic_json result;
+        binary_reader(i).parse_cbor(result);
+        return result;
     }
 
 
@@ -13265,12 +13325,16 @@ class basic_json
                                    const std::size_t start_index = 0)
     {
         binary_reader br(detail::input_adapter(v.begin() + static_cast<difference_type>(start_index), v.end()));
-        return br.parse_msgpack();
+        basic_json result;
+        br.parse_msgpack(result);
+        return result;
     }
 
     static basic_json from_msgpack(detail::input_adapter i)
     {
-        return binary_reader(i).parse_msgpack();
+        basic_json result;
+        binary_reader(i).parse_msgpack(result);
+        return result;
     }
 
     /// @}
