@@ -4982,15 +4982,7 @@ class binary_reader
             case 0x8e:
             case 0x8f:
             {
-                BasicJsonType result = value_t::object;
-                const auto len = static_cast<size_t>(current & 0x0f);
-                for (std::size_t i = 0; i < len; ++i)
-                {
-                    get();
-                    auto key = get_msgpack_string();
-                    result[key] = parse_msgpack();
-                }
-                return result;
+                return get_msgpack_object(current & 0x0f);
             }
 
             // fixarray
@@ -5011,13 +5003,7 @@ class binary_reader
             case 0x9e:
             case 0x9f:
             {
-                BasicJsonType result = value_t::array;
-                const auto len = static_cast<size_t>(current & 0x0f);
-                for (std::size_t i = 0; i < len; ++i)
-                {
-                    result.push_back(parse_msgpack());
-                }
-                return result;
+                return get_msgpack_array(current & 0x0f);
             }
 
             // fixstr
@@ -5053,6 +5039,9 @@ class binary_reader
             case 0xbd:
             case 0xbe:
             case 0xbf:
+            case 0xd9: // str 8
+            case 0xda: // str 16
+            case 0xdb: // str 32
             {
                 return get_msgpack_string();
             }
@@ -5122,59 +5111,24 @@ class binary_reader
                 return get_number<int64_t>();
             }
 
-            case 0xd9: // str 8
-            case 0xda: // str 16
-            case 0xdb: // str 32
-            {
-                return get_msgpack_string();
-            }
-
             case 0xdc: // array 16
             {
-                BasicJsonType result = value_t::array;
-                const auto len = static_cast<size_t>(get_number<uint16_t>());
-                for (std::size_t i = 0; i < len; ++i)
-                {
-                    result.push_back(parse_msgpack());
-                }
-                return result;
+                return get_msgpack_array(get_number<uint16_t>());
             }
 
             case 0xdd: // array 32
             {
-                BasicJsonType result = value_t::array;
-                const auto len = static_cast<size_t>(get_number<uint32_t>());
-                for (std::size_t i = 0; i < len; ++i)
-                {
-                    result.push_back(parse_msgpack());
-                }
-                return result;
+                return get_msgpack_array(get_number<uint32_t>());
             }
 
             case 0xde: // map 16
             {
-                BasicJsonType result = value_t::object;
-                const auto len = static_cast<size_t>(get_number<uint16_t>());
-                for (std::size_t i = 0; i < len; ++i)
-                {
-                    get();
-                    auto key = get_msgpack_string();
-                    result[key] = parse_msgpack();
-                }
-                return result;
+                return get_msgpack_object(get_number<uint16_t>());
             }
 
             case 0xdf: // map 32
             {
-                BasicJsonType result = value_t::object;
-                const auto len = static_cast<size_t>(get_number<uint32_t>());
-                for (std::size_t i = 0; i < len; ++i)
-                {
-                    get();
-                    auto key = get_msgpack_string();
-                    result[key] = parse_msgpack();
-                }
-                return result;
+                return get_msgpack_object(get_number<uint32_t>());
             }
 
             // positive fixint
@@ -5406,6 +5360,35 @@ class binary_reader
                 JSON_THROW(parse_error::create(113, chars_read, "expected a CBOR string; last byte: 0x" + ss.str()));
             }
         }
+    }
+
+    template<typename NumberType>
+    BasicJsonType get_msgpack_array(const NumberType len)
+    {
+        BasicJsonType result = value_t::array;
+
+        for (NumberType i = 0; i < len; ++i)
+        {
+            result.push_back(parse_msgpack());
+        }
+
+        return result;
+    }
+
+    template<typename NumberType>
+    BasicJsonType get_msgpack_object(const NumberType len)
+    {
+        BasicJsonType result = value_t::object;
+        std::string key;
+
+        for (NumberType i = 0; i < len; ++i)
+        {
+            get();
+            key = get_msgpack_string();
+            result[std::move(key)] = parse_msgpack();
+        }
+
+        return result;
     }
 
     template<typename NumberType>
