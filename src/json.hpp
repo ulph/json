@@ -5312,10 +5312,11 @@ class binary_reader
 
     @throw parse_error.110 if input has less than @a len bytes
     */
-    std::string get_string(const std::size_t len)
+    template<typename NumberType>
+    std::string get_string(const NumberType len)
     {
         std::string result;
-        for (std::size_t i = 0; i < len; ++i)
+        for (NumberType i = 0; i < len; ++i)
         {
             get();
             check_eof();
@@ -5368,32 +5369,27 @@ class binary_reader
             case 0x76:
             case 0x77:
             {
-                const auto len = static_cast<size_t>(current & 0x1f);
-                return get_string(len);
+                return get_string(current & 0x1f);
             }
 
             case 0x78: // UTF-8 string (one-byte uint8_t for n follows)
             {
-                const auto len = static_cast<size_t>(get_number<uint8_t>());
-                return get_string(len);
+                return get_string(get_number<uint8_t>());
             }
 
             case 0x79: // UTF-8 string (two-byte uint16_t for n follow)
             {
-                const auto len = static_cast<size_t>(get_number<uint16_t>());
-                return get_string(len);
+                return get_string(get_number<uint16_t>());
             }
 
             case 0x7a: // UTF-8 string (four-byte uint32_t for n follow)
             {
-                const auto len = static_cast<size_t>(get_number<uint32_t>());
-                return get_string(len);
+                return get_string(get_number<uint32_t>());
             }
 
             case 0x7b: // UTF-8 string (eight-byte uint64_t for n follow)
             {
-                const auto len = static_cast<size_t>(get_number<uint64_t>());
-                return get_string(len);
+                return get_string(get_number<uint64_t>());
             }
 
             case 0x7f: // UTF-8 string (indefinite length)
@@ -5525,26 +5521,22 @@ class binary_reader
             case 0xbe:
             case 0xbf:
             {
-                const auto len = static_cast<size_t>(current & 0x1f);
-                return get_string(len);
+                return get_string(current & 0x1f);
             }
 
             case 0xd9: // str 8
             {
-                const auto len = static_cast<size_t>(get_number<uint8_t>());
-                return get_string(len);
+                return get_string(get_number<uint8_t>());
             }
 
             case 0xda: // str 16
             {
-                const auto len = static_cast<size_t>(get_number<uint16_t>());
-                return get_string(len);
+                return get_string(get_number<uint16_t>());
             }
 
             case 0xdb: // str 32
             {
-                const auto len = static_cast<size_t>(get_number<uint32_t>());
-                return get_string(len);
+                return get_string(get_number<uint32_t>());
             }
 
             default:
