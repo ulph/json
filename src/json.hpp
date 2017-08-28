@@ -1413,10 +1413,8 @@ class cached_input_stream_adapter : public input_adapter_protocol
   private:
     void fill_buffer()
     {
-        // fill
-        is.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
-        // store number of bytes in the buffer
-        fill_size = static_cast<size_t>(is.gcount());
+        // fill buffer
+        fill_size = static_cast<std::size_t>(is.rdbuf()->sgetn(buffer.data(), static_cast<std::streamsize>(buffer.size())));
     }
 
     /// the associated input stream
