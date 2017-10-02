@@ -79,7 +79,7 @@ matrix:
     addons:
       apt:
         sources: ['ubuntu-toolchain-r-test']
-        packages: [g++-4.9, cppcheck]
+        packages: g++-4.9
     after_success:
       - make clean
       - CPPFLAGS="-DJSON_NOEXCEPTION" make check TEST_PATTERN="-e \"*\""
@@ -281,6 +281,10 @@ matrix:
       # install ICC
       - test/thirdparty/icc-travis/install-icc.sh
     after_script: '[[ ! -z "${INTEL_INSTALL_PATH}" ]] && uninstall_intel_software'
+    addons:
+      apt:
+        sources: ['ubuntu-toolchain-r-test']
+        packages: g++-4.9
 
 ################
 # build script #
