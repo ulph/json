@@ -19,7 +19,7 @@ env:
    # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created
    #   via the "travis encrypt" command using the project repo's public key
    - secure: "m89SSgE+ASLO38rSKx7MTXK3n5NkP9bIx95jwY71YEiuFzib30PDJ/DifKnXxBjvy/AkCGztErQRk/8ZCvq+4HXozU2knEGnL/RUitvlwbhzfh2D4lmS3BvWBGS3N3NewoPBrRmdcvnT0xjOGXxtZaJ3P74TkB9GBnlz/HmKORA="
-
+     secure: "atiosmtLvDXOW1K3QgMjpjwAkYf4ZsyStAk2HdHaJ6G1xwoWL5mHKykvXN50lRBObgT8LsIRRPFuMb2tD4qUfCnIYoPO+q0Ro4TirSODB06q0ZsQv0ogHcyZcS/pfelvN+lU7s2AR6ItTj8NSzUub1GYTspyvLsn6+ij9PC+JnA="
 
 ################
 # build matrix #
@@ -267,6 +267,13 @@ matrix:
         sources: ['ubuntu-toolchain-r-test', 'llvm-toolchain-trusty-5.0']
         packages: ['g++-6', 'clang-5.0']
 
+  # Linux / ICC
+
+  - os: linux
+    env: COMPILER=icpc
+    before_install: ./install-icc.sh
+    after_script: '[[ ! -z "${INTEL_INSTALL_PATH}" ]] && uninstall_intel_software'
+
 ################
 # build script #
 ################
@@ -282,6 +289,9 @@ script:
 
   # make sure CXX is correctly set
   - if [[ "${COMPILER}" != "" ]]; then export CXX=${COMPILER}; fi
+
+  # read initialization data for ICC
+  - if [[ "${COMPILER}" == "icpc" ]]; then source ~/.bashrc; fi
 
   # show OS/compiler version
   - uname -a
