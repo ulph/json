@@ -271,7 +271,15 @@ matrix:
 
   - os: linux
     env: COMPILER=icpc
-    before_install: test/thirdparty/icc-travis/install-icc.sh
+    before_install:
+      # install recent CMake
+      - mkdir $HOME/usr
+      - export PATH="$HOME/usr/bin:$PATH"
+      - wget https://cmake.org/files/v3.7/cmake-3.7.2-Linux-x86_64.sh
+      - chmod +x cmake-3.7.2-Linux-x86_64.sh
+      - ./cmake-3.7.2-Linux-x86_64.sh --prefix=$HOME/usr --exclude-subdir --skip-license
+      # install ICC
+      - test/thirdparty/icc-travis/install-icc.sh
     after_script: '[[ ! -z "${INTEL_INSTALL_PATH}" ]] && uninstall_intel_software'
 
 ################
