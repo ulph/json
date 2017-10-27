@@ -126,5 +126,35 @@ foreach(file ${files})
         )
         set_tests_properties("${testcase}_valgrind" PROPERTIES LABELS "valgrind")
     endif()
+endforeach()
 
+file(GLOB files2 "src/doctest-*.cpp")
+foreach(file ${files2})
+    get_filename_component(file_basename ${file} NAME_WE)
+    string(REGEX REPLACE "doctest-([^$]+)" "doctest-\\1" testcase ${file_basename})
+
+    add_executable(${testcase} ${file})
+    set_target_properties(${testcase} PROPERTIES
+        CXX_STANDARD 11
+        CXX_STANDARD_REQUIRED ON
+        COMPILE_DEFINITIONS "$<$<CXX_COMPILER_ID:MSVC>:_SCL_SECURE_NO_WARNINGS>"
+        COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:MSVC>:/EHsc;$<$<CONFIG:Release>:/Od>>"
+    )
+
+    target_include_directories(${testcase} PRIVATE "thirdparty/doctest")
+    target_link_libraries(${testcase} ${JSON_TARGET_NAME})
+
+    add_test(NAME "${testcase}_default"
+      COMMAND ${testcase} ${CATCH_TEST_FILTER}
+      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+    set_tests_properties("${testcase}_default" PROPERTIES LABELS "default")
+
+    if(JSON_Valgrind)
+        add_test(NAME "${testcase}_valgrind"
+          COMMAND ${memcheck_command} ${CMAKE_CURRENT_BINARY_DIR}/${testcase} ${CATCH_TEST_FILTER}
+          WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        )
+        set_tests_properties("${testcase}_valgrind" PROPERTIES LABELS "valgrind")
+    endif()
 endforeach()
