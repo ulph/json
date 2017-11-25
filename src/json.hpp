@@ -780,6 +780,20 @@ struct external_constructor<value_t::object>
         j.assert_invariant();
     }
 
+    template<typename BasicJsonType, typename K, typename T, typename C, typename A>
+    static void construct(BasicJsonType& j, const std::multimap<K, T, C, A>& obj)
+    {
+        j.m_type = value_t::object;
+        j.m_value = value_t::object;
+
+        for (const auto& v: obj)
+        {
+            j[v.first].push_back(v.second);
+        }
+
+        j.assert_invariant();
+    }
+
     template<typename BasicJsonType, typename CompatibleObjectType,
              enable_if_t<not std::is_same<CompatibleObjectType,
                                           typename BasicJsonType::object_t>::value, int> = 0>
