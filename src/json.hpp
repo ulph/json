@@ -6103,6 +6103,56 @@ class serializer
     using number_float_t = typename BasicJsonType::number_float_t;
     using number_integer_t = typename BasicJsonType::number_integer_t;
     using number_unsigned_t = typename BasicJsonType::number_unsigned_t;
+
+    static bool oneliner(const BasicJsonType& val, const unsigned int num_elems) {
+        if (num_elems < 1) return false;
+        if (val.m_type == value_t::array) {
+            if (val.m_value.array->size() > num_elems) return false;
+            for (auto i = val.m_value.array->cbegin(); i != val.m_value.array->cend(); ++i) {
+                const auto& t = (*i).m_type;
+                if (t == value_t::array || t == value_t::object) return false;
+            }
+            return true;
+        }
+        else if (val.m_type == value_t::object) {
+            if (val.m_value.object->size() > num_elems) return false;
+            auto i = val.m_value.object->cbegin();
+            for (size_t cnt = 0; cnt < val.m_value.object->size(); ++cnt, ++i) {
+                if ((*i).second.m_type == value_t::array || (*i).second.m_type == value_t::object) return false;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    void startArray(bool compacted) {
+        compacted ? o->write_characters("[ ", 2) : o->write_characters("[\n", 2);
+    }
+
+    void endArray(bool compacted, const unsigned int current_indent) {
+        compacted ? o->write_character(' ') : o->write_character('\n');
+        indentElement(compacted, current_indent);
+        o->write_character(']');
+    }
+
+    void indentElement(bool compacted, const unsigned int indent) {
+        if(!compacted) o->write_characters(indent_string.c_str(), indent);
+    }
+
+    void seperateElement(bool compacted) {
+        compacted ? o->write_characters(", ", 2) : o->write_characters(",\n", 2);
+    }
+
+    void startObject(bool compacted) {
+        compacted ? o->write_characters("{ ", 2) : o->write_characters("{\n", 2);
+    }
+
+    void endObject(bool compacted, const unsigned int current_indent) {
+        compacted ? o->write_character(' ') : o->write_character('\n');
+        indentElement(compacted, current_indent);
+        o->write_character('}');
+    }
+
   public:
     /*!
     @param[in] s  output stream to serialize to
@@ -6135,7 +6185,16 @@ class serializer
     @param[in] indent_step     the indent level
     @param[in] current_indent  the current indent level (only used internally)
     */
+
     void dump(const BasicJsonType& val, const bool pretty_print,
+        const bool ensure_ascii,
+        const unsigned int indent_step,
+        const unsigned int current_indent = 0)
+    {
+        dump(val, pretty_print, 0, ensure_ascii, indent_step, current_indent);
+    }
+
+    void dump(const BasicJsonType& val, const bool pretty_print, const int leafsPerLine,
               const bool ensure_ascii,
               const unsigned int indent_step,
               const unsigned int current_indent = 0)
@@ -6152,7 +6211,9 @@ class serializer
 
                 if (pretty_print)
                 {
-                    o->write_characters("{\n", 2);
+                    bool compacted = oneliner(val, 4);
+
+                    startObject(compacted);
 
                     // variable to hold indentation for recursive calls
                     const auto new_indent = current_indent + indent_step;
@@ -6165,26 +6226,24 @@ class serializer
                     auto i = val.m_value.object->cbegin();
                     for (std::size_t cnt = 0; cnt < val.m_value.object->size() - 1; ++cnt, ++i)
                     {
-                        o->write_characters(indent_string.c_str(), new_indent);
+                        indentElement(compacted, new_indent);
                         o->write_character('\"');
                         dump_escaped(i->first, ensure_ascii);
                         o->write_characters("\": ", 3);
-                        dump(i->second, true, ensure_ascii, indent_step, new_indent);
-                        o->write_characters(",\n", 2);
+                        dump(i->second, true, leafsPerLine, ensure_ascii, indent_step, new_indent);
+                        seperateElement(compacted);
                     }
 
                     // last element
                     assert(i != val.m_value.object->cend());
                     assert(std::next(i) == val.m_value.object->cend());
-                    o->write_characters(indent_string.c_str(), new_indent);
+                    indentElement(compacted, new_indent);
                     o->write_character('\"');
                     dump_escaped(i->first, ensure_ascii);
                     o->write_characters("\": ", 3);
-                    dump(i->second, true, ensure_ascii, indent_step, new_indent);
+                    dump(i->second, true, leafsPerLine, ensure_ascii, indent_step, new_indent);
 
-                    o->write_character('\n');
-                    o->write_characters(indent_string.c_str(), current_indent);
-                    o->write_character('}');
+                    endObject(compacted, current_indent);
                 }
                 else
                 {
@@ -6225,7 +6284,9 @@ class serializer
 
                 if (pretty_print)
                 {
-                    o->write_characters("[\n", 2);
+                    bool compacted = oneliner(val, leafsPerLine);
+
+                    startArray(compacted);
 
                     // variable to hold indentation for recursive calls
                     const auto new_indent = current_indent + indent_step;
@@ -6238,19 +6299,17 @@ class serializer
                     for (auto i = val.m_value.array->cbegin();
                             i != val.m_value.array->cend() - 1; ++i)
                     {
-                        o->write_characters(indent_string.c_str(), new_indent);
-                        dump(*i, true, ensure_ascii, indent_step, new_indent);
-                        o->write_characters(",\n", 2);
+                        indentElement(compacted, new_indent);
+                        dump(*i, true, leafsPerLine, ensure_ascii, indent_step, new_indent);
+                        seperateElement(compacted);
                     }
 
                     // last element
                     assert(not val.m_value.array->empty());
-                    o->write_characters(indent_string.c_str(), new_indent);
-                    dump(val.m_value.array->back(), true, ensure_ascii, indent_step, new_indent);
+                    indentElement(compacted, new_indent);
+                    dump(val.m_value.array->back(), true, leafsPerLine, ensure_ascii, indent_step, new_indent);
 
-                    o->write_character('\n');
-                    o->write_characters(indent_string.c_str(), current_indent);
-                    o->write_character(']');
+                    endArray(compacted, current_indent);
                 }
                 else
                 {
@@ -8996,14 +9055,32 @@ class basic_json
            @a ensure_ascii added in version 3.0.0
     */
     string_t dump(const int indent = -1, const char indent_char = ' ',
-                  const bool ensure_ascii = false) const
+        const bool ensure_ascii = false) const
     {
         string_t result;
         serializer s(detail::output_adapter<char>(result), indent_char);
 
         if (indent >= 0)
         {
-            s.dump(*this, true, ensure_ascii, static_cast<unsigned int>(indent));
+            s.dump(*this, true, 0, ensure_ascii, static_cast<unsigned int>(indent));
+        }
+        else
+        {
+            s.dump(*this, false, ensure_ascii, 0);
+        }
+
+        return result;
+    }
+
+    string_t dump(const int indent, const int leavesPerRow, const char indent_char = ' ',
+        const bool ensure_ascii = false) const
+    {
+        string_t result;
+        serializer s(detail::output_adapter<char>(result), indent_char);
+
+        if (indent >= 0)
+        {
+            s.dump(*this, true, leavesPerRow, ensure_ascii, static_cast<unsigned int>(indent));
         }
         else
         {
